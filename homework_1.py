@@ -1,4 +1,6 @@
 #==============================================================================
+# GLOBALS
+
 #------------------------------------------------------------------------------
 # IMPORT LIBRARIES
 import json
@@ -22,8 +24,6 @@ def import_method(path,key):
                 data[d[key]] = d
     return data
 
-#------------------------------------------------------------------------------
-# GLOBAL VARIABLES
 
 # Import pokedex and moves
 pokedex = import_method('pokemon_data/pokemons.json','name')
@@ -31,7 +31,7 @@ moves = import_method('pokemon_data/moves.json','name')
 pokemon_movesets = import_method('pokemon_data/pokemon_movesets.json','pokemonID')
 type_effectiveness = import_method('pokemon_data/type_effectiveness.json',['attack','defend'])
 
-#------------------------------------------------------------------------------
+#==============================================================================
 # TRAINER
 class Trainer:
 
@@ -103,8 +103,8 @@ class Trainer:
                 enemy_pokemon.currentHP = enemy_pokemon.currentHP - damage
                 print(enemy_pokemon.name + ' has ' + str(int(enemy_pokemon.currentHP)) +'/' + str(enemy_pokemon.baseStats['hp']) + ' HP left.')
                 
-#------------------------------------------------------------------------------
-# POKEMON
+#==============================================================================
+# CLASS POKEMON
 
 class Pokemon:
 
