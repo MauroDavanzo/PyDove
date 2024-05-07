@@ -1,0 +1,9 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Apr 18 10:28:11 2024
+
+@author: tamiedo16661
+"""
+
+- trainer: calss that create the trainer with no pokemons and items (is possible to pass pkmn and items for rivals)
+    - add_pokemon: method of the class thrainer that add an object pokemon (class Pokemon)
