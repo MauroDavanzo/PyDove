@@ -48,7 +48,36 @@ class Trainer:
             self.pokemons.append(Pokemon(name))
         else:
             print('Your team is full the pokemon will added to ' + self.name + "'s PC.")
+    # NEW        
+    def add_object(self,name,n_item):
+        try:
+            self.items[name] += n_item
+        except KeyError:
+            self.items[name] = n_item
             
+        if self.items[name]>10:
+            self.items[name] = 10
+            
+    # NEW
+    def view_object(self):
+        for item_num, item in enumerate(self.items.keys()):
+            print(str(item_num+1) + ') ' + item +  ": " + str(self.items[item]))
+            
+    # NEW
+    def remove_object(self):
+        print('Which item do you want to remove?\n')
+        self.view_object()
+        item_num = int(input('\nRemove object number:\n')) -1
+        item_qt = int(input('\nHow much do you want to remover:\n')) 
+        
+        if item_qt >= self.items[list(self.items.keys())[item_num]]:
+            ask = input("\nYou are removing all the " + list(self.items.keys())[item_num] +" are you sure to continue? (y/n)\n" )
+            if ask == "y":
+                self.items[list(self.items.keys())[item_num]] = 0
+        else:
+            self.items[list(self.items.keys())[item_num]] -= item_qt
+
+                
     def view_team(self):
         for pkm_num, pkm in enumerate(self.pokemons):
             print(str(pkm_num+1) + ') ' + pkm.name + ' LV: ' + str(pkm.level)+ ', HP: ' + str(pkm.currentHP)+'/'+str(pkm.baseStats["hp"]))
@@ -327,39 +356,25 @@ class State:
 def main():
     print('Welcome to the Pokèmon world\n')
 
-    # # Silence inputs
-
-    # print('What is your name?')
-    # name = input()
-    # print('What is your age?')
-    # age = input()
-    # print('What is your gender? (M/F)')
-    # gender = input()
-    # print('What is starter? (Charmender/Bulbasaur/Squirtle)')
-    # starter = input()
-
     # Create the player
     player_name = "Edo"
     player_age = "24"
     player_gender = "M"
     player_pokemons = []
-    player_items = []
+    player_items = dict()
 
     player = Trainer(player_name, player_age, player_gender, player_pokemons, player_items)
 
     # Add the starter more times
     starter = "bulbasaur"
-    for i in range(0,3):
-        player.add_pokemon(starter)
+    player.add_pokemon(starter)
 
-    # # Rename pokemon
-    # player.rename_pokemon()
+    # Add item
+    player.add_object(name="Potion", n_item=10)
+    player.add_object(name="Pokeball", n_item=10)
     
-    # # Remove a pokemon
-    # player.remove_pokemon()
-    # View team    
-    player.view_team()
-
+    # player.view_object()
+    player.remove_object()
     # # Encounter
     # player.enemy_encounter()
 
