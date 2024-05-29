@@ -42,12 +42,15 @@ class Battle:
         self.npc = npc
         
         
-    def damage_step(self,move,attacker,defender,damage):
+    def damage_step(self,move,attacker,defender):
         
         if move == "struggle":
             print(attacker.name + 'has no PP left. ' + attacker.name + ' uses struggle.' )
         else:
-            print(attacker.name + "uses " + move)
+            print(attacker.name + " uses " + move)
+            
+        # Calculate the damage
+        damage = attacker.UseMove(move, defender)
         
         if damage > defender.currentHP:
             defender.currentHP = 0
@@ -58,7 +61,26 @@ class Battle:
         
         return defender
     
-        
+    def pkm_switch(self,Trainer,active):
+        if active is None:
+            pkm_num = 0
+            while Trainer.pokemons[pkm_num].currentHP == 0:
+                pkm_num += 1
+        else:
+            Trainer.view_team()
+            pkm_num = int(input("Which Pokemon do you want to switch in?"))-1
+            
+            while Trainer.pokemons[pkm_num].currentHP == 0 or Trainer.pokemons[pkm_num] == active:
+                if  Trainer.pokemons[pkm_num].currentHP == 0:
+                    print("You can't switch to " + Trainer.pokemons[pkm_num].name + "! It's fainted!")            
+                elif Trainer.pokemons[pkm_num] == active:
+                    print("You can't switch to " + Trainer.pokemons[pkm_num].name + "! It's already on the battlefield!")
+     
+                Trainer.view_team()
+                pkm_num = int(input("Which Pokemon do you want to switch in?"))-1
+                   
+        return Trainer.pokemons[pkm_num]
+               
     def dobattle(self):
         
         # Select Player active pokemon and enemy_pokemon
@@ -66,7 +88,7 @@ class Battle:
         while self.Player.pokemons[pkm_num].currentHP == 0:
             pkm_num += 1        
         
-        active_pokemon = self.Player.pokemons[pkm_num]
+        player_pokemon = self.Player.pokemons[pkm_num]
         enemy_pokemon = self.Enemy.pokemons[0]
         
         # Initialize end battle
@@ -74,6 +96,8 @@ class Battle:
         win = True
         
         while not end_battle:
+            # Intial control
+            doturn = True
             
             # Enemy damage calculator (ENEMY ALWAYS ATTACKS)
             
@@ -91,14 +115,10 @@ class Battle:
                 enemy_pokemon.movesPP[enemy_move_num] -= 1
                 
                 # Choosen move
-                enemy_move = enemy_pokemon.moves[enemy_move_num]
-            
-            # Calculate the damage
-            enemy_damage = enemy_pokemon.UseMove(enemy_move, active_pokemon)
-            
+                enemy_move = enemy_pokemon.moves[enemy_move_num]            
             
             print('What do you want to do?\n1)Attack\n2)Switch Pokemon\n3)Use item\n4)Run')
-           
+            
             match int(input('\nChoose your action: ')):
                 
                 # Attack
@@ -107,32 +127,36 @@ class Battle:
                     # Trainer damage calculator
                     
                     # Check if all PP of all moves are zero
-                    if sum(active_pokemon.movesPP) == 0:
+                    if sum(player_pokemon.movesPP) == 0:
                         move = 'struggle'
-                                               
+
                     else:
                         # Print the avaible moves
-                        for move_idx, move in enumerate(active_pokemon.moves):
-                            print(str(move_idx+1)+') ' + move + ' PP: ' + str(active_pokemon.movesPP[move_idx]) + '/' + str(moves[move]['pp']))
-                        move_num = int(input('What move should ' + active_pokemon.name + ' use? '))-1
+                        for move_idx, move in enumerate(player_pokemon.moves):
+                            print(str(move_idx+1)+') ' + move + ' PP: ' + str(player_pokemon.movesPP[move_idx]) + '/' + str(moves[move]['pp']))
+                        move_num = int(input('What move should ' + player_pokemon.name + ' use? '))-1
                         
-                        while active_pokemon.movesPP[move_num] == 0:
-                            move_num = int(input(active_pokemon.moves[move_num] + 'has no PP left for this move. What move should ' + active_pokemon.name + ' use? ')-1)
+                        while player_pokemon.movesPP[move_num] == 0:
+                            move_num = int(input(player_pokemon.moves[move_num] + 'has no PP left for this move. What move should ' + player_pokemon.name + ' use? ')-1)
                         
                         # Decrease moves PP
-                        active_pokemon.movesPP[move_num] -= 1
+                        player_pokemon.movesPP[move_num] -= 1
                         
                         # Choosen move
-                        move = active_pokemon.moves[move_num]
+                        player_move = player_pokemon.moves[move_num]
     
-                    # Use the move
-                    your_damage = active_pokemon.UseMove(enemy_pokemon)
-                    
-               
                 # Switch
                 case 2:
-                    pass
+                    print(player_pokemon.name + " come back!")
+                    player_pokemon = self.pkm_switch(self.Player,active=player_pokemon)
+                    
+                    if enemy_pokemon.currentHP/enemy_pokemon.baseStats['hp']>=0.5:
+                        print("Go! "+ player_pokemon.name)
+                    else:
+                        print("The enemy is low. Go! "+ player_pokemon.name)
                 
+                    doturn = False
+                    
                 # Use item (open bag)
                 case 3:
                     pass
@@ -143,96 +167,126 @@ class Battle:
                         if np.random.uniform(0,1)>=0.4:
                             print("Got away safely!")
                             end_battle = True
+                            win = "Escape"
+                            continue
                         else:
                             print("Can't escape!")
+                            doturn = False
                     else:
                         print("You can't run away from a trainer!")
-                        # If the player try to escape against a npc it can use another action to change his move.
                         continue
+                        # If the player try to escape against a npc it can use another action to change his move.
 
-            
 
-            
-            ###################################################################
-            # Check speed (for the moment ignoring speed-tie: if np.random.uniform(0,1)>=0.5:)
-            if active_pokemon.baseStats["speed"]>=  enemy_pokemon.baseStats["speed"]: 
-                
-                enemy_pokemon = self.damage_step(self,move,attacker,defender,damage)
-                
-                if sum([self.Enemy.pokemons[i].currentHP for i in range(len(self.Enemy.pokemons))]) == 0:
-                    end_battle = True 
-                    win = True
-                    if self.npc:
-                        print("You defeat " + self.Enemy.name)
-                    else:
-                        print("You defeated wild " + self.Enemy.pokemons[0].name)
-                        
-                    return win
-                
-                active_pokemon = = self.damage_step(self,move,attacker,defender,damage)
-                
-                
-            else active_pokemon.baseStats["speed"]< enemy_pokemon.baseStats["speed"]:
-                
-                
- 
-                
-            
-            # Check if the battle is over
+
+            # Check speed
+            if player_pokemon.baseStats["speed"]>  enemy_pokemon.baseStats["speed"]: 
+                mefirst = True
+            elif player_pokemon.baseStats["speed"]<  enemy_pokemon.baseStats["speed"]: 
+                mefirst = False
             else:
-                if enemy_move == "struggle":
-                    print(enemy_pokemon.name + 'has no PP left. ' + enemy_pokemon.name + ' uses struggle.' )
+                if np.random.uniform(0,1)>=0.5:
+                    mefirst = True
                 else:
-                    print(enemy_pokemon.name + "uses " + enemy_move)
+                    mefirst = False
+            
+            # Check if Player Pokemon is faster than enemy Pokemon (Plyaer Pokemon will attack first)
+            if mefirst: 
                 
-                if enemy_damage > active_pokemon.currentHP:
-                    active_pokemon.currentHP = 0
-                else:   
-                    active_pokemon.currentHP = active_pokemon.currentHP - enemy_damage
-                
-                print(active_pokemon.name + ' has ' + str(int(active_pokemon.currentHP)) +'/' + str(active_pokemon.baseStats['hp']) + ' HP left.')
-                
-                if sum([self.Player.pokemons[i].currentHP for i in range(len(self.Player.pokemons))]) == 0:
-                    end_battle = True 
-                    print("You got defeated!")
-                    win = False
+                # Our attack
+                if doturn:
+                    enemy_pokemon = self.damage_step(player_move,player_pokemon,enemy_pokemon)
                     
-                    return win
+                    # Check if all enemy pokemon are defeated (WIN)
+                    if sum([self.Enemy.pokemons[i].currentHP for i in range(len(self.Enemy.pokemons))]) == 0:
+                        if self.npc:
+                            print("You defeat " + self.Enemy.name)
+                        else:
+                            print("You defeated wild " + self.Enemy.pokemons[0].name)
+                            
+                        # Battle is over
+                        end_battle = True 
+                        win = True
+                        continue
+                    
+                    # If only the first pokemon is defeated (SWITCH)
+                    if enemy_pokemon.currentHP == 0:
+                        print(enemy_pokemon.name + " fainted!")
+                        enemy_pokemon = self.pkm_switch(self.Enemy,active=None)
+                        print(self.Enemy.name + " is about to send out" + enemy_pokemon.name)
+                        continue
+                
+                # Enemy Pokemon
+                player_pokemon = self.damage_step(enemy_move, enemy_pokemon, player_pokemon)
+                
+                # Check if all our pokemon has been defeated (LOSE)
+                if sum([self.Player.pokemons[i].currentHP for i in range(len(self.Player.pokemons))]) == 0:
+                    print("You have been defeated")
+                    
+                    # Battle is over
+                    end_battle = True 
+                    win = False
+                    continue
+                
+                # If only our first pokemon is defeated (SWITCH)
+                if player_pokemon.currentHP == 0:
+                   print(player_pokemon.name + " fainted!")
+                   player_pokemon = self.pkm_switch(self.Player,active=player_pokemon)
+                   if enemy_pokemon.currentHP/enemy_pokemon.baseStats['hp']>=0.5:
+                       print("Go! "+ player_pokemon.name)
+                   else:
+                       print("The enemy is low. Go! "+ player_pokemon.name)
+                 
+            # Check if Player Pokemon is faster than enemy Pokemon (Plyaer Pokemon will attack first)
+            else:
+                
+                # Enemy attack
+                player_pokemon = self.damage_step(enemy_move, enemy_pokemon, player_pokemon)
+                
+                # Check if all our pokemon has been defeated (LOSE)
+                if sum([self.Player.pokemons[i].currentHP for i in range(len(self.Player.pokemons))]) == 0:
+                    print("You have been defeated")
+                    
+                    # Battle is over
+                    end_battle = True 
+                    win = False
+                    continue
+                
+                # If only our first pokemon is defeated (SWITCH)
+                if player_pokemon.currentHP == 0:
+                    print(player_pokemon.name + " fainted!")
+                    player_pokemon = self.pkm_switch(self.Player,active=player_pokemon)
+                    if enemy_pokemon.currentHP/enemy_pokemon.baseStats['hp']>=0.5:
+                        print("Go! "+ player_pokemon.name)
+                    else:
+                        print("The enemy is low. Go! "+ player_pokemon.name)
    
+                    continue
                 
-            
-            
-        # if action == 1:
-        #     # Check if all PP of all moves are zero
-        #     if sum(active_pokemon.movesPP) == 0:
-        #         print(active_pokemon.name + 'has no PP left. ' + active_pokemon.name + ' uses struggle.' )
-        #         chosen_move = 'struggle'
-                
-        #         # Use the move
-        #         active_pokemon.UseMove(chosen_move,Pokemon("charmander"))
-                
-        #     else:
-        #         # Print the avaible moves
-        #         for move_idx, move in enumerate(active_pokemon.moves):
-        #             print(str(move_idx+1)+') ' + move + ' PP: ' + str(active_pokemon.movesPP[move_idx]) + '/' + str(moves[move]['pp']))
-        #         chosen_move = int(input('What move should ' + active_pokemon.name + ' use? '))-1
-                
-        #         while active_pokemon.movesPP[chosen_move] == 0:
-        #             chosen_move = int(input(active_pokemon.moves[chosen_move] + 'has no PP left for this move. What move should ' + active_pokemon.name + ' use? ')-1)
-                
-        #         # Decrease moves PP
-        #         active_pokemon.movesPP[chosen_move] -= 1
-                
-        #         # Use the move
-                
-        #         damage = active_pokemon.UseMove(active_pokemon.moves[chosen_move],enemy_pokemon)
-                
-        #         enemy_pokemon.currentHP = enemy_pokemon.currentHP - damage
-        #         print(enemy_pokemon.name + ' has ' + str(int(enemy_pokemon.currentHP)) +'/' + str(enemy_pokemon.baseStats['hp']) + ' HP left.')
-        
-        
-    
-
+                # Our attack
+                if doturn:
+                    enemy_pokemon = self.damage_step(player_move,player_pokemon,enemy_pokemon)
+                    
+                    # Check if all enemy pokemon are defeated (WIN)
+                    if sum([self.Enemy.pokemons[i].currentHP for i in range(len(self.Enemy.pokemons))]) == 0:
+                        if self.npc:
+                            print("You defeat " + self.Enemy.name)
+                        else:
+                            print("You defeated wild " + self.Enemy.pokemons[0].name)
+                            
+                        # Battle is over
+                        end_battle = True 
+                        win = True
+                        continue
+                    
+                    # If only the first pokemon is defeated (SWITCH)
+                    if enemy_pokemon.currentHP == 0:
+                        print(enemy_pokemon.name + " fainted!")
+                        enemy_pokemon = self.pkm_switch(self.Enemy,active=None)
+                        print(self.Enemy.name + " is about to send out" + enemy_pokemon.name)
+                        continue
+                    
+        return win
 #==============================================================================
 # TRAINER
 class Trainer:
@@ -296,14 +350,16 @@ class Trainer:
         new_pokemon_name = input('Which name do you want to assign to your pokemon?\n')
         self.pokemons[pokemon].name = new_pokemon_name
         
-    def enemy_encounter(self):     
+    # def enemy_encounter(self):     
 
-        # Initialize the enemy
-        enemy_pokemons = [Pokemon("charmander"), Pokemon("charmander")]
-        rival = Trainer(name="Tony", age="27", gender="Fluid", pokemons=enemy_pokemons, items = [])
+    #     # Initialize the enemy
+    #     enemy_pokemons = [Pokemon("charmander"), Pokemon("charmander")]
+    #     rival = Trainer(name="Tony", age="27", gender="Fluid", pokemons=enemy_pokemons, items = [])
   
-        # Battle 
-        battle = Battle(self, rival, npc = False).dobattle()
+    #     # Battle 
+    #     win = Battle(self, rival, npc = False).dobattle()
+        
+    #     return win
         
         
                 
@@ -371,159 +427,159 @@ class Pokemon:
                 print('It is super effective!')
             elif effect <1:
                 print('It is not very effective...')
-            return np.floor(((2*self.level+10)/250*attack/defense*power+2)*modifier)
+            return int(np.floor(((2*self.level+10)/250*attack/defense*power+2)*modifier))
         else:
             print('Oh NO! '+ self.name +"'s attack missed")
             return 0
 #==============================================================================
-# FINITE STATE MACHINE
+# # FINITE STATE MACHINE
 
-class FiniteStateMachine:
-    def __init__(self):
-        self.G = nx.MultiDiGraph()
-        self.state = None
-        self.start_state = None
-        self.final_states = set()
+# class FiniteStateMachine:
+#     def __init__(self):
+#         self.G = nx.MultiDiGraph()
+#         self.state = None
+#         self.start_state = None
+#         self.final_states = set()
 
-    # Method to initialize the FSM to the start state
-    def initialize(self):
-        self.state = self.start_state
+#     # Method to initialize the FSM to the start state
+#     def initialize(self):
+#         self.state = self.start_state
 
-    # Method to add a state to the FSM
-    def add_state(self, state, **kwargs):
-        self.G.add_node(state, **kwargs)
+#     # Method to add a state to the FSM
+#     def add_state(self, state, **kwargs):
+#         self.G.add_node(state, **kwargs)
 
-    # Method to add a transition between two states of the FSM
-    def add_transition(self, state1, state2, **kwargs):
-        self.G.add_edge(state1, state2, **kwargs)
+#     # Method to add a transition between two states of the FSM
+#     def add_transition(self, state1, state2, **kwargs):
+#         self.G.add_edge(state1, state2, **kwargs)
 
-    # Method to remove a state from the FSM
-    def remove_state(self, state):
-        if state not in list(self.G):
-            print("State", state, "is not present!")
-            return False
-        self.G.remove_node(state)
+#     # Method to remove a state from the FSM
+#     def remove_state(self, state):
+#         if state not in list(self.G):
+#             print("State", state, "is not present!")
+#             return False
+#         self.G.remove_node(state)
 
-    # Method to remove a transition from the FSM
-    def remove_transition(self, state1, state2):
-        if state1 not in list(self.G):
-            print("State", state1, "is not present!")
-            return False
-        if state2 not in list(self.G):
-            print("State", state2, "is not present!")
-            return False
-        if (state1, state2) not in [e for e in self.G.edges]:
-            print("Transition", (state1, state2), "is not present!")
-            return False
-        self.G.remove_edge(state1, state2)
+#     # Method to remove a transition from the FSM
+#     def remove_transition(self, state1, state2):
+#         if state1 not in list(self.G):
+#             print("State", state1, "is not present!")
+#             return False
+#         if state2 not in list(self.G):
+#             print("State", state2, "is not present!")
+#             return False
+#         if (state1, state2) not in [e for e in self.G.edges]:
+#             print("Transition", (state1, state2), "is not present!")
+#             return False
+#         self.G.remove_edge(state1, state2)
 
-    # Method to set the start state of the FSM
-    def set_start_state(self, state):
-        if state not in list(self.G):
-            print("State", state, "is not present!")
-            return False
-        self.start_state = state
+#     # Method to set the start state of the FSM
+#     def set_start_state(self, state):
+#         if state not in list(self.G):
+#             print("State", state, "is not present!")
+#             return False
+#         self.start_state = state
 
-    # Method to set the final states of the FSM
-    def set_final_states(self, states):
-        for s in states:
-            if s not in list(self.G):
-                print("State", s, "is not present!")
-                return False
-        self.final_states = set(states)
+#     # Method to set the final states of the FSM
+#     def set_final_states(self, states):
+#         for s in states:
+#             if s not in list(self.G):
+#                 print("State", s, "is not present!")
+#                 return False
+#         self.final_states = set(states)
 
-    # Method to add a final state to the FSM
-    def add_final_state(self, state):
-        if state not in list(self.G):
-            print("State", state, "is not present!")
-            return False
-        self.final_states.add(state)
+#     # Method to add a final state to the FSM
+#     def add_final_state(self, state):
+#         if state not in list(self.G):
+#             print("State", state, "is not present!")
+#             return False
+#         self.final_states.add(state)
 
-    # Method to remove a final state from the FSM
-    def remove_final_state(self, state):
-        if state not in self.final_states:
-            print("State", state, "is not present!")
-            return False
-        self.final_states.remove(state)
+#     # Method to remove a final state from the FSM
+#     def remove_final_state(self, state):
+#         if state not in self.final_states:
+#             print("State", state, "is not present!")
+#             return False
+#         self.final_states.remove(state)
 
-    # Method to reset the final states of the FSM
-    def clear_final_states(self):
-        self.final_states = set()
+#     # Method to reset the final states of the FSM
+#     def clear_final_states(self):
+#         self.final_states = set()
 
-    # Method to extract one or more attributes from the current state of the FSM
-    def get_state_attributes(self, attr=None):
-        if not attr:
-            return self.G.nodes[self.state]
-        else:
-            return self.G.nodes[self.state][attr]
+#     # Method to extract one or more attributes from the current state of the FSM
+#     def get_state_attributes(self, attr=None):
+#         if not attr:
+#             return self.G.nodes[self.state]
+#         else:
+#             return self.G.nodes[self.state][attr]
 
-    # Method to extract one or more attributes from the transition between
-    # the current state and the target state
-    def get_transition_attributes(self, target, attr=None):
-        if not attr:
-            return self.G[self.state][target][0]
-        else:
-            return self.G[self.state][target][0][attr]
+#     # Method to extract one or more attributes from the transition between
+#     # the current state and the target state
+#     def get_transition_attributes(self, target, attr=None):
+#         if not attr:
+#             return self.G[self.state][target][0]
+#         else:
+#             return self.G[self.state][target][0][attr]
 
-    # Method to run the current state of the FSM
-    def eval_current(self, *args, run='run', **kargs):
-        method = getattr(self.state, run, None)
-        if callable(method):
-            method(*args, **kargs)
+#     # Method to run the current state of the FSM
+#     def eval_current(self, *args, run='run', **kargs):
+#         method = getattr(self.state, run, None)
+#         if callable(method):
+#             method(*args, **kargs)
 
-    # Method to perform the transition between the current state and the target state
-    def do_transition(self, target, *args, attr='fun', **kargs):
-        if attr in self.G[self.state][target][0]:
-            self.G[self.state][target][0][attr](*args, **kargs)
-        self.state = target
+#     # Method to perform the transition between the current state and the target state
+#     def do_transition(self, target, *args, attr='fun', **kargs):
+#         if attr in self.G[self.state][target][0]:
+#             self.G[self.state][target][0][attr](*args, **kargs)
+#         self.state = target
 
-    # Method that returns the list of possible transitions from the current state
-    def possible_transitions(self):
-        return [n for n in self.G.neighbors(self.state)]
+#     # Method that returns the list of possible transitions from the current state
+#     def possible_transitions(self):
+#         return [n for n in self.G.neighbors(self.state)]
 
-    # Method to identify the next transition of the FSM using the state update method
-    def update(self, *args, update='update', **kargs):
-        choices = self.possible_transitions()
-        if not choices:
-            print("No transition possible, machine halting.")
-            return None
-        elif len(choices) == 1:
-            return choices[0]
-        elif callable(getattr(self.state, update, None)):
-            method = getattr(self.state, update, None)
-            return method(choices, *args, **kargs)
-        else:
-            print("Update rule is undefined, machine halting.")
-            return None
+#     # Method to identify the next transition of the FSM using the state update method
+#     def update(self, *args, update='update', **kargs):
+#         choices = self.possible_transitions()
+#         if not choices:
+#             print("No transition possible, machine halting.")
+#             return None
+#         elif len(choices) == 1:
+#             return choices[0]
+#         elif callable(getattr(self.state, update, None)):
+#             method = getattr(self.state, update, None)
+#             return method(choices, *args, **kargs)
+#         else:
+#             print("Update rule is undefined, machine halting.")
+#             return None
 
-    # Method to draw the FSM and, eventually, visualize the current state of the FSM
-    def draw(self, show_current_state=True, **kwds):
-        if show_current_state:
-            nodes = list(self.G)
-            colors = ['b']*len(nodes)
-            colors[nodes.index(self.state)] = 'g'
-            nx.draw(self.G, with_labels=True,
-                    node_color = colors,
-                    connectionstyle='arc3, rad = 0.1', **kwds)
-        else:
-            nx.draw(self.G, with_labels=True,
-                    connectionstyle='arc3, rad = 0.1', **kwds)
-        # plt.show()
+#     # Method to draw the FSM and, eventually, visualize the current state of the FSM
+#     def draw(self, show_current_state=True, **kwds):
+#         if show_current_state:
+#             nodes = list(self.G)
+#             colors = ['b']*len(nodes)
+#             colors[nodes.index(self.state)] = 'g'
+#             nx.draw(self.G, with_labels=True,
+#                     node_color = colors,
+#                     connectionstyle='arc3, rad = 0.1', **kwds)
+#         else:
+#             nx.draw(self.G, with_labels=True,
+#                     connectionstyle='arc3, rad = 0.1', **kwds)
+#         # plt.show()
 
 
-# Template of the State class for the FSM
-class State:
-    def __init__(self, name=None):
-        self.name = name
+# # Template of the State class for the FSM
+# class State:
+#     def __init__(self, name=None):
+#         self.name = name
 
-    # Method to perform the operation of the current state of the FSM
-    # (used by .eval_current() method of the FSM)
-    def run(self, *args, **kargs):
-        pass
+#     # Method to perform the operation of the current state of the FSM
+#     # (used by .eval_current() method of the FSM)
+#     def run(self, *args, **kargs):
+#         pass
 
-    # Method to select the next state of the FSM
-    # (used by .update() method of the FSM)
-    def update(self, choices, *args, **kargs):
+#     # Method to select the next state of the FSM
+#     # (used by .update() method of the FSM)
+#     def update(self, choices, *args, **kargs):
         pass
 #==============================================================================
 # MAIN
@@ -542,6 +598,7 @@ def main():
     # Add the starter more times
     starter = "bulbasaur"
     player.add_pokemon(starter)
+    player.add_pokemon(starter)
 
     # Add item
     player.add_object(name="Potion", n_item=10)
@@ -550,23 +607,29 @@ def main():
     # player.view_object()
     # player.remove_object()
     # Encounter
-    player.enemy_encounter()
+    # win = player.enemy_encounter()
 
     # Rival
     if starter == "bulbasaur":
-        rival_pokemons = pokedex["charmander"]
+        rival_pokemons = "charmander"
     elif starter == "squirtle":
-        rival_pokemons = pokedex["bulbasaur"]
+        rival_pokemons = "bulbasaur"
     else:
-        rival_pokemons = pokedex["squirtle"]
+        rival_pokemons = "squirtle"
 
-    rival = Trainer(name="Tony", age="27", gender="Fluid", pokemons=rival_pokemons, items = [])
+    rival = Trainer(name="Tony", age="27", gender="Fluid", pokemons=[], items = [])
+    rival.add_pokemon(rival_pokemons)
+    
+    
+    mybattle = Battle(player,rival,npc = True)
+    
+    win = mybattle.dobattle()
 
-    return player, rival, pokedex, pokemon_movesets
+    return player, rival, win
 
 
 if __name__ == "__main__":
-    player, rival, pokedex, pokemon_movesets = main()
+    player, rival, win = main()
 
 
 
