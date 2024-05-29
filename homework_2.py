@@ -33,6 +33,207 @@ pokemon_movesets = import_method('pokemon_data/pokemon_movesets.json','pokemonID
 type_effectiveness = import_method('pokemon_data/type_effectiveness.json',['attack','defend'])
 
 #==============================================================================
+# BATTLE
+class Battle:
+    
+    def __init__(self,Player,Enemy,npc):
+        self.Player = Player
+        self.Enemy = Enemy
+        self.npc = npc
+        
+        
+    def damage_step(self,move,attacker,defender,damage):
+        
+        if move == "struggle":
+            print(attacker.name + 'has no PP left. ' + attacker.name + ' uses struggle.' )
+        else:
+            print(attacker.name + "uses " + move)
+        
+        if damage > defender.currentHP:
+            defender.currentHP = 0
+        else:   
+            defender.currentHP = defender.currentHP - damage
+        
+        print(defender.name + ' has ' + str(int(defender.currentHP)) +'/' + str(defender.baseStats['hp']) + ' HP left.')
+        
+        return defender
+    
+        
+    def dobattle(self):
+        
+        # Select Player active pokemon and enemy_pokemon
+        pkm_num = 0
+        while self.Player.pokemons[pkm_num].currentHP == 0:
+            pkm_num += 1        
+        
+        active_pokemon = self.Player.pokemons[pkm_num]
+        enemy_pokemon = self.Enemy.pokemons[0]
+        
+        # Initialize end battle
+        end_battle = False
+        win = True
+        
+        while not end_battle:
+            
+            # Enemy damage calculator (ENEMY ALWAYS ATTACKS)
+            
+            # Check if all PP of all moves are zero
+            if sum(enemy_pokemon.movesPP) == 0:
+                enemy_move = 'struggle'
+            else:
+                # Print the avaible moves
+                enemy_move_num = np.random.randint(0,high=len(enemy_pokemon.moves))
+                
+                while enemy_pokemon.movesPP[enemy_move_num] == 0:
+                    enemy_move_num = np.random.randint(0,high=len(enemy_pokemon.moves))
+                
+                # Decrease moves PP
+                enemy_pokemon.movesPP[enemy_move_num] -= 1
+                
+                # Choosen move
+                enemy_move = enemy_pokemon.moves[enemy_move_num]
+            
+            # Calculate the damage
+            enemy_damage = enemy_pokemon.UseMove(enemy_move, active_pokemon)
+            
+            
+            print('What do you want to do?\n1)Attack\n2)Switch Pokemon\n3)Use item\n4)Run')
+           
+            match int(input('\nChoose your action: ')):
+                
+                # Attack
+                case 1:
+                    
+                    # Trainer damage calculator
+                    
+                    # Check if all PP of all moves are zero
+                    if sum(active_pokemon.movesPP) == 0:
+                        move = 'struggle'
+                                               
+                    else:
+                        # Print the avaible moves
+                        for move_idx, move in enumerate(active_pokemon.moves):
+                            print(str(move_idx+1)+') ' + move + ' PP: ' + str(active_pokemon.movesPP[move_idx]) + '/' + str(moves[move]['pp']))
+                        move_num = int(input('What move should ' + active_pokemon.name + ' use? '))-1
+                        
+                        while active_pokemon.movesPP[move_num] == 0:
+                            move_num = int(input(active_pokemon.moves[move_num] + 'has no PP left for this move. What move should ' + active_pokemon.name + ' use? ')-1)
+                        
+                        # Decrease moves PP
+                        active_pokemon.movesPP[move_num] -= 1
+                        
+                        # Choosen move
+                        move = active_pokemon.moves[move_num]
+    
+                    # Use the move
+                    your_damage = active_pokemon.UseMove(enemy_pokemon)
+                    
+               
+                # Switch
+                case 2:
+                    pass
+                
+                # Use item (open bag)
+                case 3:
+                    pass
+                
+                # Run
+                case 4:
+                    if not self.npc:
+                        if np.random.uniform(0,1)>=0.4:
+                            print("Got away safely!")
+                            end_battle = True
+                        else:
+                            print("Can't escape!")
+                    else:
+                        print("You can't run away from a trainer!")
+                        # If the player try to escape against a npc it can use another action to change his move.
+                        continue
+
+            
+
+            
+            ###################################################################
+            # Check speed (for the moment ignoring speed-tie: if np.random.uniform(0,1)>=0.5:)
+            if active_pokemon.baseStats["speed"]>=  enemy_pokemon.baseStats["speed"]: 
+                
+                enemy_pokemon = self.damage_step(self,move,attacker,defender,damage)
+                
+                if sum([self.Enemy.pokemons[i].currentHP for i in range(len(self.Enemy.pokemons))]) == 0:
+                    end_battle = True 
+                    win = True
+                    if self.npc:
+                        print("You defeat " + self.Enemy.name)
+                    else:
+                        print("You defeated wild " + self.Enemy.pokemons[0].name)
+                        
+                    return win
+                
+                active_pokemon = = self.damage_step(self,move,attacker,defender,damage)
+                
+                
+            else active_pokemon.baseStats["speed"]< enemy_pokemon.baseStats["speed"]:
+                
+                
+ 
+                
+            
+            # Check if the battle is over
+            else:
+                if enemy_move == "struggle":
+                    print(enemy_pokemon.name + 'has no PP left. ' + enemy_pokemon.name + ' uses struggle.' )
+                else:
+                    print(enemy_pokemon.name + "uses " + enemy_move)
+                
+                if enemy_damage > active_pokemon.currentHP:
+                    active_pokemon.currentHP = 0
+                else:   
+                    active_pokemon.currentHP = active_pokemon.currentHP - enemy_damage
+                
+                print(active_pokemon.name + ' has ' + str(int(active_pokemon.currentHP)) +'/' + str(active_pokemon.baseStats['hp']) + ' HP left.')
+                
+                if sum([self.Player.pokemons[i].currentHP for i in range(len(self.Player.pokemons))]) == 0:
+                    end_battle = True 
+                    print("You got defeated!")
+                    win = False
+                    
+                    return win
+   
+                
+            
+            
+        # if action == 1:
+        #     # Check if all PP of all moves are zero
+        #     if sum(active_pokemon.movesPP) == 0:
+        #         print(active_pokemon.name + 'has no PP left. ' + active_pokemon.name + ' uses struggle.' )
+        #         chosen_move = 'struggle'
+                
+        #         # Use the move
+        #         active_pokemon.UseMove(chosen_move,Pokemon("charmander"))
+                
+        #     else:
+        #         # Print the avaible moves
+        #         for move_idx, move in enumerate(active_pokemon.moves):
+        #             print(str(move_idx+1)+') ' + move + ' PP: ' + str(active_pokemon.movesPP[move_idx]) + '/' + str(moves[move]['pp']))
+        #         chosen_move = int(input('What move should ' + active_pokemon.name + ' use? '))-1
+                
+        #         while active_pokemon.movesPP[chosen_move] == 0:
+        #             chosen_move = int(input(active_pokemon.moves[chosen_move] + 'has no PP left for this move. What move should ' + active_pokemon.name + ' use? ')-1)
+                
+        #         # Decrease moves PP
+        #         active_pokemon.movesPP[chosen_move] -= 1
+                
+        #         # Use the move
+                
+        #         damage = active_pokemon.UseMove(active_pokemon.moves[chosen_move],enemy_pokemon)
+                
+        #         enemy_pokemon.currentHP = enemy_pokemon.currentHP - damage
+        #         print(enemy_pokemon.name + ' has ' + str(int(enemy_pokemon.currentHP)) +'/' + str(enemy_pokemon.baseStats['hp']) + ' HP left.')
+        
+        
+    
+
+#==============================================================================
 # TRAINER
 class Trainer:
 
@@ -96,42 +297,15 @@ class Trainer:
         self.pokemons[pokemon].name = new_pokemon_name
         
     def enemy_encounter(self):     
-        pkm_num = 0
-        while self.pokemons[pkm_num].currentHP == 0:
-            pkm_num += 1        
+
+        # Initialize the enemy
+        enemy_pokemons = [Pokemon("charmander"), Pokemon("charmander")]
+        rival = Trainer(name="Tony", age="27", gender="Fluid", pokemons=enemy_pokemons, items = [])
+  
+        # Battle 
+        battle = Battle(self, rival, npc = False).dobattle()
         
-        active_pokemon = self.pokemons[pkm_num]
         
-        print('What do you want to do?\n1)Attack\n2)Switch Pokemon\n3)Use item\n4)Run')
-        action = int(input('\nChoose your action: '))
-        
-        if action == 1:
-            # Check if all PP of all moves are zero
-            if sum(active_pokemon.movesPP) == 0:
-                print(active_pokemon.name + 'has no PP left. ' + active_pokemon.name + ' uses struggle.' )
-                chosen_move = 'struggle'
-                
-                # Use the move
-                active_pokemon.UseMove(chosen_move,Pokemon("charmander"))
-                
-            else:
-                # Print the avaible moves
-                for move_idx, move in enumerate(active_pokemon.moves):
-                    print(str(move_idx+1)+') ' + move + ' PP: ' + str(active_pokemon.movesPP[move_idx]) + '/' + str(moves[move]['pp']))
-                chosen_move = int(input('What move should ' + active_pokemon.name + ' use? '))-1
-                
-                while active_pokemon.movesPP[chosen_move] == 0:
-                    chosen_move = int(input(active_pokemon.moves[chosen_move] + 'has no PP left for this move. What move should ' + active_pokemon.name + ' use? ')-1)
-                
-                # Decrease moves PP
-                active_pokemon.movesPP[chosen_move] -= 1
-                
-                # Use the move
-                enemy_pokemon = Pokemon("charmander")
-                damage = active_pokemon.UseMove(active_pokemon.moves[chosen_move],enemy_pokemon)
-                
-                enemy_pokemon.currentHP = enemy_pokemon.currentHP - damage
-                print(enemy_pokemon.name + ' has ' + str(int(enemy_pokemon.currentHP)) +'/' + str(enemy_pokemon.baseStats['hp']) + ' HP left.')
                 
 #==============================================================================
 # CLASS POKEMON
@@ -374,9 +548,9 @@ def main():
     player.add_object(name="Pokeball", n_item=10)
     
     # player.view_object()
-    player.remove_object()
-    # # Encounter
-    # player.enemy_encounter()
+    # player.remove_object()
+    # Encounter
+    player.enemy_encounter()
 
     # Rival
     if starter == "bulbasaur":
