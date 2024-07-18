@@ -1,16 +1,28 @@
-#==============================================================================
+# ==============================================================================
 # GLOBALS
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # IMPORT LIBRARIES
 import json
 import numpy as np
 import networkx as nx
+import time
 
-#------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
 # IMPORTING FUNCTIONS
+def import_method(path, key):
+    """Importh the .json files containing all the necessary pokemon informations.
 
-def import_method(path,key):
+    Inputs
+    -----
+    - path: path of the .json file
+    - key: key to use in json extraction
+
+    Returns
+    -------
+    - data: dictionary containing the extracted information
+    """
     if len(key) == 2:
         data = dict()
         with open(path, 'r', encoding="utf-8") as file:
@@ -27,60 +39,126 @@ def import_method(path,key):
 
 
 # Import pokedex and moves
-pokedex = import_method('pokemon_data/pokemons.json','name')
-moves = import_method('pokemon_data/moves.json','name')
-pokemon_movesets = import_method('pokemon_data/pokemon_movesets.json','pokemonID')
-type_effectiveness = import_method('pokemon_data/type_effectiveness.json',['attack','defend'])
+pokedex = import_method('pokemon_data/pokemons.json', 'name')
+moves = import_method('pokemon_data/moves.json', 'name')
+pokemon_movesets = import_method('pokemon_data/pokemon_movesets.json', 'pokemonID')
+type_effectiveness = import_method('pokemon_data/type_effectiveness.json', ['attack', 'defend'])
 
-#==============================================================================
+
+# ==============================================================================
 # BATTLE
 class Battle:
-    
-    def __init__(self,Player,Enemy,npc):
+    """To write.
+
+    Inputs
+    -----
+    - Player:
+    - Enemy:
+    - npc:
+    """
+
+    def __init__(self, Player, Enemy, npc):
         self.Player = Player
         self.Enemy = Enemy
         self.npc = npc
-        
-        
-    def damage_step(self,move,attacker,defender):
-        
+
+    # Calculate and apply the damage in a battle
+    def damage_step(self, move, attacker, defender):
+        """Calculate the damage done by the attacker to the defender by using a certain move.
+
+        Inputs
+        -----
+        - move: move used by the attacker
+        - attacker: attacking pokemon
+        - defender: defending pokemon
+
+        Returns
+        -------
+        - defender: defending pokemon with updated HP.
+        """
+        # Check if the used move is struggle
         if move == "struggle":
-            print(attacker.name + 'has no PP left. ' + attacker.name + ' uses struggle.' )
+            print(attacker.name + 'has no PP left. ' + attacker.name + ' uses struggle.')
         else:
             print(attacker.name + " uses " + move)
-            
+
         # Calculate the damage
         damage = attacker.UseMove(move, defender)
-        
+
+        # Update the defender HP
         if damage > defender.currentHP:
             defender.currentHP = 0
-        else:   
+        else:
             defender.currentHP = defender.currentHP - damage
-        
-        print(defender.name + ' has ' + str(int(defender.currentHP)) +'/' + str(defender.baseStats['hp']) + ' HP left.')
-        
+        print(defender.name + ' has ' + str(int(defender.currentHP)) + '/'
+              + str(defender.baseStats['hp']) + ' HP left.')
+
         return defender
-    
-    def pkm_switch(self,Trainer,active):
+
+    # Switch a pokemon in a battle
+    def pkm_switch(self, Trainer, active):
+        """Switch the Trainer active pokemon with another one in its own team.
+
+        Inputs
+        -----
+        - Trainer: Trainer object that wants to switch the pokemon
+        - active: active pokemon currently used by the Trainer
+
+        Returns
+        -------
+        - Trainer.pokemons[pkm_num]: pokeomon sent out to the battle
+        """
+        # Check if the switch is done by an npc (in this case it is automatically the next pokemon)
         if active is None:
             pkm_num = 0
             while Trainer.pokemons[pkm_num].currentHP == 0:
                 pkm_num += 1
+        # Check if the switch is done by the Player
         else:
             Trainer.view_team()
-            pkm_num = int(input("Which Pokemon do you want to switch in?"))-1
-            
+            pkm_num = self.control_input((input("Which Pokemon do you want to switch in?\nPress any other key" +
+                                                "to return to main menu:")), len(Trainer.pokemons))
+
+            # Return to the main menu
+            if pkm_num == "undo":
+                return "undo"
+
+            # Control if the selected pokemon is fainted or it is already the active pokemon
             while Trainer.pokemons[pkm_num].currentHP == 0 or Trainer.pokemons[pkm_num] == active:
-                if  Trainer.pokemons[pkm_num].currentHP == 0:
-                    print("You can't switch to " + Trainer.pokemons[pkm_num].name + "! It's fainted!")            
+                if Trainer.pokemons[pkm_num].currentHP == 0:
+                    print("You can't switch to " + Trainer.pokemons[pkm_num].name + "! It's fainted!")
                 elif Trainer.pokemons[pkm_num] == active:
-                    print("You can't switch to " + Trainer.pokemons[pkm_num].name + "! It's already on the battlefield!")
-     
+                    print("You can't switch to " + Trainer.pokemons[pkm_num].name + "! It's already on the ground")
+
                 Trainer.view_team()
-                pkm_num = int(input("Which Pokemon do you want to switch in?"))-1
-                   
+                pkm_num = self.control_input((input("Which Pokemon do you want to switch in?\nPress any other key" +
+                                                    " to return to main menu:")), len(Trainer.pokemons))
+
+                # Return to the main menu
+                if pkm_num == "undo":
+                    return "undo"
+
         return Trainer.pokemons[pkm_num]
-               
+
+    # Control user inputs in battle
+    def control_input(self, player_input, thd):
+        """Check that input is consistent to the user's action. If not, the action is cancelled.
+
+        Inputs
+        -----
+        - player_input: input of the Player
+        - thd: custom threshold dependent on the action done
+
+        Returns
+        -------
+        - user's input (return "undo" if the input is not valid)
+        """
+        # Check that input is in the action's threshold
+        if player_input in [str(i) for i in range(1, thd+1)]:
+            return int(player_input)-1
+        else:
+            return "undo"
+              
     def dobattle(self):
         
         # Select Player active pokemon and enemy_pokemon
@@ -97,7 +175,7 @@ class Battle:
         
         while not end_battle:
             # Intial control
-            doturn = True
+            doattack = True
             
             # Enemy damage calculator (ENEMY ALWAYS ATTACKS)
             
@@ -134,10 +212,18 @@ class Battle:
                         # Print the avaible moves
                         for move_idx, move in enumerate(player_pokemon.moves):
                             print(str(move_idx+1)+') ' + move + ' PP: ' + str(player_pokemon.movesPP[move_idx]) + '/' + str(moves[move]['pp']))
-                        move_num = int(input('What move should ' + player_pokemon.name + ' use? '))-1
+                        move_num = self.control_input((input("What move should " + player_pokemon.name + " use?\nPress any other key to return to main menu:")), len((player_pokemon.moves)))
+                        
+                        # Return to the main menu
+                        if move_num == "undo":
+                            continue
                         
                         while player_pokemon.movesPP[move_num] == 0:
-                            move_num = int(input(player_pokemon.moves[move_num] + 'has no PP left for this move. What move should ' + player_pokemon.name + ' use? ')-1)
+                            move_num = self.control_input((input("What move should " + player_pokemon.name + " use?\nPress any other key to return to main menu:")), len((player_pokemon.moves)))
+                            
+                            # Return to the main menu
+                            if move_num == "undo":
+                                continue
                         
                         # Decrease moves PP
                         player_pokemon.movesPP[move_num] -= 1
@@ -150,16 +236,75 @@ class Battle:
                     print(player_pokemon.name + " come back!")
                     player_pokemon = self.pkm_switch(self.Player,active=player_pokemon)
                     
+                    if player_pokemon == "undo":
+                        continue
+                    
                     if enemy_pokemon.currentHP/enemy_pokemon.baseStats['hp']>=0.5:
                         print("Go! "+ player_pokemon.name)
                     else:
                         print("The enemy is low. Go! "+ player_pokemon.name)
                 
-                    doturn = False
+                    doattack = False
                     
                 # Use item (open bag)
                 case 3:
-                    pass
+                    self.Player.view_object()
+                    item_num = self.control_input((input("Which items do you want to use?\nPress any other key to return to main menu:")), len(list(self.Player.items.keys())))
+                    
+                    # Return to the main menu
+                    if item_num == "undo":
+                        continue
+                    
+                    if sum(self.Player.items.values()) == 0:
+                        print("You do not have any object")
+                    
+                    while self.Player.items[list(self.Player.items.keys())[item_num]] == 0:
+                        print("You don't have any more " + list(self.Player.items.keys())[item_num])
+                        print("\nSelect another object\n")
+                        item_num = self.control_input((input("Which items do you want to use?\nPress any other key to return to main menu:"))-1, len(list(self.Player.items.keys())))
+                        
+                        # Return to the main menu
+                        if item_num == "undo":
+                            continue 
+                  
+                    self.Player.items[list(self.Player.items.keys())[item_num]] -= 1
+                    
+                    if list(self.Player.items.keys())[item_num] == "Potion":
+                        self.Player.view_team()            
+                        pkm_num = self.control_input((input("Which Pokemon do you want to heal?\nPress any other key to return to main menu:")), len(self.Player.pokemons))
+                           
+                        # Return to the main menu
+                        if pkm_num == "undo":
+                            return "undo"
+                        
+                        self.Player.pokemons[pkm_num].currentHP = min(self.Player.pokemons[pkm_num].baseStats['hp'],self.Player.pokemons[pkm_num].currentHP+20 )
+                        print(self.Player.pokemons[pkm_num].name + " has now " + str(self.Player.pokemons[pkm_num].currentHP) +'/' + str(self.Player.pokemons[pkm_num].baseStats['hp']) + ' HP.')
+                    
+                    
+                    elif list(self.Player.items.keys())[item_num] == "Pokeball":
+                        if self.npc:
+                            print("")
+                        else:
+                            catchprobability = 1 - self.Enemy.pokemons[0].currentHP/self.Enemy.pokemons[0].baseStats['hp']
+                            if np.random.uniform(0,1)<catchprobability:
+                                ticks = int(np.random.uniform(1,3))
+                                for i in range(1,ticks+1):
+                                    print("____")
+                                    time.sleep(1)
+                                self.Player.add_pokemon(self.Enemy.pokemons[0])
+                                end_battle = True 
+                                win = "Catched"
+                                continue
+                            else:
+                                ticks = int(np.random.uniform(1,3))
+                                for i in range(1,ticks+1):
+                                    print("____")
+                                    time.sleep(1)
+                                    
+                                print("Escaped")
+                    
+                            
+                    doattack = False      
                 
                 # Run
                 case 4:
@@ -171,7 +316,7 @@ class Battle:
                             continue
                         else:
                             print("Can't escape!")
-                            doturn = False
+                            doattack = False
                     else:
                         print("You can't run away from a trainer!")
                         continue
@@ -194,7 +339,7 @@ class Battle:
             if mefirst: 
                 
                 # Our attack
-                if doturn:
+                if doattack:
                     enemy_pokemon = self.damage_step(player_move,player_pokemon,enemy_pokemon)
                     
                     # Check if all enemy pokemon are defeated (WIN)
@@ -264,7 +409,7 @@ class Battle:
                     continue
                 
                 # Our attack
-                if doturn:
+                if doattack:
                     enemy_pokemon = self.damage_step(player_move,player_pokemon,enemy_pokemon)
                     
                     # Check if all enemy pokemon are defeated (WIN)
@@ -349,18 +494,7 @@ class Trainer:
         pokemon = int(input('\nRename pokemon number:\n')) -1
         new_pokemon_name = input('Which name do you want to assign to your pokemon?\n')
         self.pokemons[pokemon].name = new_pokemon_name
-        
-    # def enemy_encounter(self):     
-
-    #     # Initialize the enemy
-    #     enemy_pokemons = [Pokemon("charmander"), Pokemon("charmander")]
-    #     rival = Trainer(name="Tony", age="27", gender="Fluid", pokemons=enemy_pokemons, items = [])
-  
-    #     # Battle 
-    #     win = Battle(self, rival, npc = False).dobattle()
-        
-    #     return win
-        
+                
         
                 
 #==============================================================================
@@ -596,11 +730,14 @@ def main():
     player = Trainer(player_name, player_age, player_gender, player_pokemons, player_items)
 
     # Add the starter more times
-    starter = "bulbasaur"
+    starter = "squirtle"
     player.add_pokemon(starter)
-    player.add_pokemon(starter)
+    player.add_pokemon("charmander")
+    player.add_pokemon("bulbasaur")
+    
 
-    # Add item
+    # Add item2
+    
     player.add_object(name="Potion", n_item=10)
     player.add_object(name="Pokeball", n_item=10)
     
@@ -618,10 +755,12 @@ def main():
         rival_pokemons = "squirtle"
 
     rival = Trainer(name="Tony", age="27", gender="Fluid", pokemons=[], items = [])
-    rival.add_pokemon(rival_pokemons)
+    rival.add_pokemon(rival_pokemons)    
+    rival.add_pokemon("charmander")
+    rival.add_pokemon("squirtle")
     
     
-    mybattle = Battle(player,rival,npc = True)
+    mybattle = Battle(player,rival,npc = False)
     
     win = mybattle.dobattle()
 
